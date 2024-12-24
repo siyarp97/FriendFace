@@ -7,30 +7,30 @@
 
 import Observation
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    
+    @Environment(\.modelContext) var modelContext
+    @Query(sort:\User.company) var storedData : [User]
 
     @State private var fetching = FetchUser()
     @State private var stored = [User]()
-
     @State private var detailUser : User?
-
+    
     var body: some View {
         NavigationStack{
             if stored.isEmpty{
                 ProgressView()
             } else {
                 List {
-                    ForEach(stored, id: \.id) { user in
+                    ForEach(stored, id: \.id) { data in
                         Button {
-                            detailUser = user
+                            detailUser = data
                         }
                         label: {
-                            customRow(user: user)
+                            customRow(user: data)
                         }
-                        
-                        
-                        
                     }
                     .listRowSeparator(.hidden)
                 }
@@ -39,11 +39,7 @@ struct ContentView: View {
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Get Data", systemImage: "square.and.arrow.down") {
-                            Task {
-                                let data: [User] = try await fetching.fetchUser(
-                                    urlString: fetching.urlStr)
-                                stored = data
-                            }
+                            
                         }
                     }
                 }
@@ -53,16 +49,24 @@ struct ContentView: View {
             }
         }
         .task {
-            do{
-                let data: [User] = try await fetching.fetchUser(
-                    urlString: fetching.urlStr)
-                stored = data
-            } catch{
-                print("Error while loading")
-            }
-            
-        }
+            if storedData.isEmpty{
+                do{
+                    let data : [User] = try await fetching.fetchUser(
+                        urlString: fetching.urlStr)
+                   
+                    for user in data{
+                        modelContext.insert(user)
+                    }
+                    stored = data
+                } catch{
+                    print("Error while loading")
+                }
 
+            }
+            else{
+                stored = storedData
+            }
+        }
     }
 
     @ViewBuilder func customRow(user: User) -> some View {
